@@ -23,8 +23,8 @@ def show_color(event, x, y, flags, params):
 
     if event == cv2.EVENT_LBUTTONDOWN:
         pixel = img_hsv[y, x]
-        print(pixel)
-        #
+        #print(pixel)
+
         color_selected[:] = (B, G, R)
     if event == cv2.EVENT_RBUTTONDOWN:
         B = color_selected[10, 10][0]
