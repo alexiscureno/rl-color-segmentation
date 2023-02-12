@@ -1,7 +1,7 @@
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLabel
 from PyQt5.QtCore import QThread, pyqtSignal, Qt
-from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtGui import QImage, QPixmap, QMouseEvent
 from PyQt5 import uic, QtCore
 import sys
 import cv2
@@ -22,6 +22,7 @@ class MainWindow(QMainWindow):
 
         # Labels
         self.origin_img_lbl = self.findChild(QLabel, 'label')
+        self.origin_img_lbl.setMouseTracking(True)
         self.origin_img_lbl.mouseMoveEvent = self.mouse_event
         self.result_img_lbl = self.findChild(QLabel, 'label_2')
 
@@ -32,18 +33,16 @@ class MainWindow(QMainWindow):
         self.stop_btton = self.findChild(QPushButton, 'pushButton_2')
         self.stop_btton.clicked.connect(self.Cancelbutton)
 
-        self.setMouseTracking(True)
-
     def mouse_event(self, event):
-        """
-               if event.buttons() == QtCore.Qt.MouseEventSource:
-            print("Simple mouse motion")
 
-
-        #print(x, y)
+        #if event.buttons() == QtCore.Qt.MouseEventSource:
+        #print("Simple mouse motion")
+        #
         label_position = self.origin_img_lbl.mapFrom(self, event.pos())
         x = label_position.x()
         y = label_position.y()
+        print(x, y)
+
         """
         x, y = event.x(), event.y()
         ret, img = self.cap.read()
@@ -51,9 +50,7 @@ class MainWindow(QMainWindow):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             #flip = cv2.flip(img, 1)
             B, G, R = img[y, x]
-
-
-
+        """
     def mousePressEvent(self, QMouseEvent):
         if QMouseEvent.button() == Qt.LeftButton:
             print("Left Button Clicked")
@@ -89,13 +86,14 @@ class MainWindow(QMainWindow):
 
 class VideoFeed(QThread):
     img_update = pyqtSignal(QImage)
+
     def run(self):
         self.ThreadActive = True
         self.cap = cv2.VideoCapture(0)
         while self.ThreadActive:
-            ret, img = self.cap.read()
-            if ret:
-                image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            self.ret, self.img = self.cap.read()
+            if self.ret:
+                image = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
                 flip = cv2.flip(image, 1)
 
                 # Convert to Qt format
