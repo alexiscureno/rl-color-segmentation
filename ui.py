@@ -6,9 +6,33 @@ from PyQt5 import uic, QtCore
 import sys
 import cv2
 
+class VideoFeed(QThread):
+    img_update = pyqtSignal(QImage)
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.cap = cv2.VideoCapture(0)
+
+    def run(self):
+        self.ThreadActive = True
+
+        while self.ThreadActive:
+            ret, img = self.cap.read()
+            if ret:
+                image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                flip = cv2.flip(image, 1)
+
+                # Convert to Qt format
+                qt_image = QImage(flip.data, flip.shape[1], flip.shape[0], QImage.Format_RGB888)
+                pic = qt_image.scaled(640, 480, Qt.KeepAspectRatio)
+                self.img_update.emit(pic)
+
+    def stop(self):
+        self.ThreadActive = False
+        #self.quit()
+
 class MainWindow(QMainWindow):
-    def __init__(self):
-        super(MainWindow, self).__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
         #self.videofeed = None
         uic.loadUi('color_seg_ui.ui', self)
 
@@ -32,6 +56,8 @@ class MainWindow(QMainWindow):
 
         self.stop_btton = self.findChild(QPushButton, 'pushButton_2')
         self.stop_btton.clicked.connect(self.Cancelbutton)
+        self.videofeed = VideoFeed()
+        self.videofeed.img_update.connect(self.ImageupdateSlot)
 
     def mouse_event(self, event):
 
@@ -41,14 +67,15 @@ class MainWindow(QMainWindow):
         label_position = self.origin_img_lbl.mapFrom(self, event.pos())
         x = label_position.x()
         y = label_position.y()
-        print(x, y)
+        # print(x, y)
+        ret, img = self.videofeed.cap.read()
 
-        """
-         if self.ret:
-            image = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
+        if ret:
+            image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             flip = cv2.flip(image, 1)
             B, G, R = flip[y, x]
-        """
+            print(B, G, R)
+
 
         # x, y = event.x(), event.y()
         """
@@ -82,9 +109,8 @@ class MainWindow(QMainWindow):
 
     def start_video(self):
         self.origin_img_lbl.setMouseTracking(True)
-        self.videofeed = VideoFeed()
         self.videofeed.start()
-        self.videofeed.img_update.connect(self.ImageupdateSlot)
+
 
     def ImageupdateSlot(self, Image):
         self.origin_img_lbl.setPixmap(QPixmap.fromImage(Image))
@@ -92,27 +118,7 @@ class MainWindow(QMainWindow):
     def Cancelbutton(self):
         self.videofeed.stop()
 
-class VideoFeed(QThread):
-    img_update = pyqtSignal(QImage)
 
-    def run(self):
-        self.ThreadActive = True
-        self.cap = cv2.VideoCapture(0)
-        while self.ThreadActive:
-            self.ret, self.img = self.cap.read()
-
-            if self.ret:
-                image = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
-                flip = cv2.flip(image, 1)
-
-                # Convert to Qt format
-                qt_image = QImage(flip.data, flip.shape[1], flip.shape[0], QImage.Format_RGB888)
-                pic = qt_image.scaled(640, 480, Qt.KeepAspectRatio)
-                self.img_update.emit(pic)
-
-    def stop(self):
-        self.ThreadActive = False
-        #self.quit()
 
 if __name__ == "__main__":
 
