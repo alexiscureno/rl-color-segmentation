@@ -6,8 +6,10 @@ from PyQt5 import uic, QtCore
 import sys
 import cv2
 
+
 class VideoFeed(QThread):
     img_update = pyqtSignal(QImage)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.cap = cv2.VideoCapture(0)
@@ -28,12 +30,13 @@ class VideoFeed(QThread):
 
     def stop(self):
         self.ThreadActive = False
-        #self.quit()
+        # self.quit()
+
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        #self.videofeed = None
+        # self.videofeed = None
         uic.loadUi('color_seg_ui.ui', self)
 
         # Mouse clicked
@@ -61,8 +64,8 @@ class MainWindow(QMainWindow):
 
     def mouse_event(self, event):
 
-        #if event.buttons() == QtCore.Qt.MouseEventSource:
-        #print("Simple mouse motion")
+        # if event.buttons() == QtCore.Qt.MouseEventSource:
+        # print("Simple mouse motion")
         #
         label_position = self.origin_img_lbl.mapFrom(self, event.pos())
         x = label_position.x()
@@ -76,15 +79,6 @@ class MainWindow(QMainWindow):
             B, G, R = flip[y, x]
             print(B, G, R)
 
-
-        # x, y = event.x(), event.y()
-        """
-        ret, img = self.cap.read()
-        if ret:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            #flip = cv2.flip(img, 1)
-            B, G, R = img[y, x]
-        """
     def mousePressEvent(self, QMouseEvent):
         if QMouseEvent.button() == Qt.LeftButton:
             print("Left Button Clicked")
@@ -105,12 +99,11 @@ class MainWindow(QMainWindow):
             self.G = self.color_selected[10, 10][1]
             self.R = self.color_selected[10, 10][2]
 
-        #cv2.setMouseCallback('MainWindow', self.show_color)
+        # cv2.setMouseCallback('MainWindow', self.show_color)
 
     def start_video(self):
         self.origin_img_lbl.setMouseTracking(True)
         self.videofeed.start()
-
 
     def ImageupdateSlot(self, Image):
         self.origin_img_lbl.setPixmap(QPixmap.fromImage(Image))
@@ -119,9 +112,7 @@ class MainWindow(QMainWindow):
         self.videofeed.stop()
 
 
-
 if __name__ == "__main__":
-
     app = QApplication(sys.argv)
     UIWindow = MainWindow()
     UIWindow.show()
