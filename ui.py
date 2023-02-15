@@ -7,7 +7,6 @@ import sys
 import cv2
 
 class MainWindow(QMainWindow):
-
     def __init__(self):
         super(MainWindow, self).__init__()
         #self.videofeed = None
@@ -22,9 +21,10 @@ class MainWindow(QMainWindow):
 
         # Labels
         self.origin_img_lbl = self.findChild(QLabel, 'label')
-        self.origin_img_lbl.setMouseTracking(True)
+
         self.origin_img_lbl.mouseMoveEvent = self.mouse_event
         self.result_img_lbl = self.findChild(QLabel, 'label_2')
+        self.hover_color_lbl = self.findChild(QLabel, 'label_3')
 
         # Buttons
         self.play_btton = self.findChild(QPushButton, 'pushButton')
@@ -44,7 +44,14 @@ class MainWindow(QMainWindow):
         print(x, y)
 
         """
-        x, y = event.x(), event.y()
+         if self.ret:
+            image = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
+            flip = cv2.flip(image, 1)
+            B, G, R = flip[y, x]
+        """
+
+        # x, y = event.x(), event.y()
+        """
         ret, img = self.cap.read()
         if ret:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -57,10 +64,10 @@ class MainWindow(QMainWindow):
 
     def show_color(self, event, x, y, flags, params):
 
-        self.B = self.img[y, x][0]
-        self.G = self.img[y, x][1]
-        self.R = self.img[y, x][2]
-        self.color_hover[:] = (self.B, self.G, self.R)
+        B = self.img[y, x][0]
+        G = self.img[y, x][1]
+        R = self.img[y, x][2]
+        self.color_hover[:] = (B, G, R)
 
         if event == cv2.EVENT_LBUTTONDOWN:
             self.pixel = self.img_hsv[y, x]
@@ -74,6 +81,7 @@ class MainWindow(QMainWindow):
         #cv2.setMouseCallback('MainWindow', self.show_color)
 
     def start_video(self):
+        self.origin_img_lbl.setMouseTracking(True)
         self.videofeed = VideoFeed()
         self.videofeed.start()
         self.videofeed.img_update.connect(self.ImageupdateSlot)
@@ -92,6 +100,7 @@ class VideoFeed(QThread):
         self.cap = cv2.VideoCapture(0)
         while self.ThreadActive:
             self.ret, self.img = self.cap.read()
+
             if self.ret:
                 image = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
                 flip = cv2.flip(image, 1)
