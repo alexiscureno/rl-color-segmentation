@@ -19,7 +19,7 @@ def show_color(event, x, y, flags, params):
     R = img[y, x][2]
 
     color_hover[:] = (B, G, R)
-    #
+
 
     if event == cv2.EVENT_LBUTTONDOWN:
         pixel = img_hsv[y, x]

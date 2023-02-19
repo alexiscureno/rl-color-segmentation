@@ -1,6 +1,6 @@
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLabel
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize
 from PyQt5.QtGui import QImage, QPixmap, QMouseEvent
 from PyQt5 import uic, QtCore
 import sys
@@ -39,18 +39,22 @@ class MainWindow(QMainWindow):
         self.color_hover = np.zeros((250, 250, 3), np.uint8)
         self.color_selected = np.zeros((250, 250, 3), np.uint8)
 
-        self.img_hsv = (250, 250, 3)
-        self.pixel = (250, 250, 3)
-
         # Labels
 
         self.video_lbl = self.findChild(QLabel, 'label')
         self.video_lbl.setMouseTracking(True)
         self.video_lbl.mouseMoveEvent = self.mouseMoveEvent
+        self.video_lbl.mousePressEvent = self.mousePressEvent
+
         self.video_thread = None
         self.is_playing = False
 
         self.hover_color_lbl = self.findChild(QLabel, 'label_3')
+        self.selected_color_lbl = self.findChild(QLabel, 'label_4')
+
+
+        self.rgb_hover_lbl = self.findChild(QLabel, 'rgb_hover_label')
+        self.rgb_selected_lbl = self.findChild(QLabel, "rgb_selected_label")
 
         # Buttons
         self.play_btton = self.findChild(QPushButton, 'pushButton')
@@ -74,6 +78,11 @@ class MainWindow(QMainWindow):
         self.video_thread.stop_video = True
         self.video_thread.wait()
         self.video_lbl.clear()
+        self.hover_color_lbl.clear()
+        self.selected_color_lbl.clear()
+
+        self.rgb_hover_lbl.setText(f"R:0  G:0  B:0")
+        self.rgb_selected_lbl.setText(f"R:0  G:0  B:0")
 
         self.play_btton.setEnabled(True)
         self.stop_btton.setEnabled(False)
@@ -89,11 +98,31 @@ class MainWindow(QMainWindow):
             y = event.y()
             qimg = self.video_lbl.pixmap().toImage()
             rgb = qimg.pixelColor(x, y)
-            print(f"R:{rgb.red()} G:{rgb.green()} B:{rgb.blue()}")
 
-    def mousePressEvent(self, QMouseEvent):
-        if QMouseEvent.button() == Qt.LeftButton:
-            print("Left Button Clicked")
+            r, g, b = rgb.red(), rgb.green(), rgb.blue()
+            self.color_hover[:] = (r, g, b)
+            self.rgb_hover_lbl.setText(f"R:{r} G:{g} B:{b}")
+
+            image = QImage(QSize(1, 1), QImage.Format_ARGB32_Premultiplied)
+            image.setPixelColor(0, 0, rgb)
+            pixmap = QPixmap.fromImage(image)
+            self.findChild(QLabel,'label_3').setPixmap(pixmap)
+
+    def mousePressEvent(self, event):
+        if self.is_playing:
+            x = event.x()
+            y = event.y()
+            qimg = self.video_lbl.pixmap().toImage()
+            rgb = qimg.pixelColor(x, y)
+
+            r, g, b = rgb.red(), rgb.green(), rgb.blue()
+            self.color_selected[:] = (r, g, b)
+            self.rgb_selected_lbl.setText(f"R:{r} G:{g} B:{b}")
+
+            image = QImage(QSize(1, 1), QImage.Format_ARGB32_Premultiplied)
+            image.setPixelColor(0, 0, rgb)
+            pixmap = QPixmap.fromImage(image)
+            self.findChild(QLabel, 'label_4').setPixmap(pixmap)
 
 
 if __name__ == '__main__':
