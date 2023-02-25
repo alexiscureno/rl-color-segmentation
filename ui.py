@@ -1,113 +1,149 @@
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QLabel
-from PyQt5.QtCore import QThread, pyqtSignal, Qt
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QSize
 from PyQt5.QtGui import QImage, QPixmap, QMouseEvent
 from PyQt5 import uic, QtCore
 import sys
 import cv2
 
-class MainWindow(QMainWindow):
 
+class VideoFeed(QThread):
+    img_update = pyqtSignal(np.ndarray)
     def __init__(self):
-        super(MainWindow, self).__init__()
-        #self.videofeed = None
+        super().__init__()
+        self.is_running = False
+
+    def run(self):
+        cap = cv2.VideoCapture(0)
+        self.is_running = True
+        while self.is_running:
+            ret, frame = cap.read()
+            if ret:
+                self.img_update.emit(frame)
+    def stop(self):
+        self.is_running = False
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
         uic.loadUi('color_seg_ui.ui', self)
 
         # Mouse clicked
         self.color_hover = np.zeros((250, 250, 3), np.uint8)
         self.color_selected = np.zeros((250, 250, 3), np.uint8)
 
-        self.img_hsv = (250, 250, 3)
-        self.pixel = (250, 250, 3)
+        self.img_hsv = np.zeros((250, 250, 3), np.uint8)
 
+        self.rgb_glob = (250, 250, 3)
         # Labels
-        self.origin_img_lbl = self.findChild(QLabel, 'label')
-        self.origin_img_lbl.setMouseTracking(True)
-        self.origin_img_lbl.mouseMoveEvent = self.mouse_event
-        self.result_img_lbl = self.findChild(QLabel, 'label_2')
+        self.video_thread = VideoFeed()
+        self.video_thread.img_update.connect(self.set_video_frame)
+        self.is_processing = False
+        self.is_playing = False
+        self.is_color = False
+
+        self.video_lbl = self.findChild(QLabel, 'label')
+        self.video_lbl.setMouseTracking(True)
+        self.video_lbl.mouseMoveEvent = self.mouse_move_event
+        self.video_lbl.mousePressEvent = self.mouse_press_event
+
+        self.video_result_lbl = self.findChild(QLabel, 'label_2')
+
+        self.hover_color_lbl = self.findChild(QLabel, 'label_3')
+        self.selected_color_lbl = self.findChild(QLabel, 'label_4')
+
+        self.rgb_hover_lbl = self.findChild(QLabel, 'rgb_hover_label')
+        self.rgb_selected_lbl = self.findChild(QLabel, "rgb_selected_label")
 
         # Buttons
         self.play_btton = self.findChild(QPushButton, 'pushButton')
         self.play_btton.clicked.connect(self.start_video)
 
         self.stop_btton = self.findChild(QPushButton, 'pushButton_2')
-        self.stop_btton.clicked.connect(self.Cancelbutton)
-
-    def mouse_event(self, event):
-
-        #if event.buttons() == QtCore.Qt.MouseEventSource:
-        #print("Simple mouse motion")
-        #
-        label_position = self.origin_img_lbl.mapFrom(self, event.pos())
-        x = label_position.x()
-        y = label_position.y()
-        print(x, y)
-
-        """
-        x, y = event.x(), event.y()
-        ret, img = self.cap.read()
-        if ret:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            #flip = cv2.flip(img, 1)
-            B, G, R = img[y, x]
-        """
-    def mousePressEvent(self, QMouseEvent):
-        if QMouseEvent.button() == Qt.LeftButton:
-            print("Left Button Clicked")
-
-    def show_color(self, event, x, y, flags, params):
-
-        self.B = self.img[y, x][0]
-        self.G = self.img[y, x][1]
-        self.R = self.img[y, x][2]
-        self.color_hover[:] = (self.B, self.G, self.R)
-
-        if event == cv2.EVENT_LBUTTONDOWN:
-            self.pixel = self.img_hsv[y, x]
-            self.color_selected[:] = (self.B, self.G, self.R)
-            print(self.pixel)
-        if event == cv2.EVENT_RBUTTONDOWN:
-            self.B = self.color_selected[10, 10][0]
-            self.G = self.color_selected[10, 10][1]
-            self.R = self.color_selected[10, 10][2]
-
-        #cv2.setMouseCallback('MainWindow', self.show_color)
+        self.stop_btton.clicked.connect(self.stop_video)
+        self.stop_btton.setEnabled(False)
 
     def start_video(self):
-        self.videofeed = VideoFeed()
-        self.videofeed.start()
-        self.videofeed.img_update.connect(self.ImageupdateSlot)
+        self.is_playing = True
+        self.video_thread.start()
 
-    def ImageupdateSlot(self, Image):
-        self.origin_img_lbl.setPixmap(QPixmap.fromImage(Image))
+        self.play_btton.setEnabled(False)
+        self.stop_btton.setEnabled(True)
+    def stop_video(self):
+        self.is_playing = False
+        self.video_thread.stop()
+        self.video_thread.wait()
+        self.video_lbl.clear()
+        self.video_result_lbl.clear()
+        self.hover_color_lbl.clear()
+        self.selected_color_lbl.clear()
+        self.rgb_hover_lbl.setText(f"R:0  G:0  B:0")
+        self.rgb_selected_lbl.setText(f"R:0  G:0  B:0")
 
-    def Cancelbutton(self):
-        self.videofeed.stop()
+        self.play_btton.setEnabled(True)
+        self.stop_btton.setEnabled(False)
 
-class VideoFeed(QThread):
-    img_update = pyqtSignal(QImage)
+    def set_video_frame(self, frame):
+        if self.is_playing:
 
-    def run(self):
-        self.ThreadActive = True
-        self.cap = cv2.VideoCapture(0)
-        while self.ThreadActive:
-            self.ret, self.img = self.cap.read()
-            if self.ret:
-                image = cv2.cvtColor(self.img, cv2.COLOR_BGR2RGB)
-                flip = cv2.flip(image, 1)
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            flipped = cv2.flip(image, 1)
 
-                # Convert to Qt format
-                qt_image = QImage(flip.data, flip.shape[1], flip.shape[0], QImage.Format_RGB888)
-                pic = qt_image.scaled(640, 480, Qt.KeepAspectRatio)
-                self.img_update.emit(pic)
+            # Convert to Qt format
+            qt_image = QImage(flipped.data, flipped.shape[1], flipped.shape[0], QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(qt_image)
+            self.video_lbl.setPixmap(pixmap)
 
-    def stop(self):
-        self.ThreadActive = False
-        #self.quit()
+        if self.is_color:
+            h, s, v, a = self.rgb_glob.getHsv()
+            hsv = cv2.cvtColor(flipped, cv2.COLOR_RGB2HSV)
+            lower = np.array([(h / 2) - 5, 50, 50])
+            upper = np.array([(h / 2) + 5, 255, 255])
 
-if __name__ == "__main__":
+            mask = cv2.inRange(hsv, lower, upper)
+            result = cv2.bitwise_and(flipped, flipped, mask=mask)
 
+            #result = cv2.cvtColor(result, cv2.COLOR_BGR2RGB)
+            mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+            # print(result)
+            result_pixmap = QPixmap.fromImage(QImage(result.data, result.shape[1], result.shape[0], QImage.Format_RGB888))
+            self.video_result_lbl.setPixmap(result_pixmap)
+
+
+    def mouse_move_event(self, event):
+        if self.is_playing:
+            x = event.x()
+            y = event.y()
+            qimg = self.video_lbl.pixmap().toImage()
+            rgb = qimg.pixelColor(x, y)
+            r, g, b = rgb.red(), rgb.green(), rgb.blue()
+            self.color_hover[:] = (r, g, b)
+            self.rgb_hover_lbl.setText(f"R:{r} G:{g} B:{b}")
+
+            image = QImage(QSize(1, 1), QImage.Format_ARGB32_Premultiplied)
+            image.setPixelColor(0, 0, rgb)
+            pixmap = QPixmap.fromImage(image)
+            self.findChild(QLabel, 'label_3').setPixmap(pixmap)
+    def mouse_press_event(self, event):
+        self.is_color = True
+        if self.is_playing:
+            x = event.x()
+            y = event.y()
+            qimg = self.video_lbl.pixmap().toImage()
+            rgb = qimg.pixelColor(x, y)
+            self.rgb_glob = rgb
+            r, g, b = rgb.red(), rgb.green(), rgb.blue()
+            self.color_selected[:] = (r, g, b)
+            self.rgb_selected_lbl.setText(f"R:{r} G:{g} B:{b}")
+
+            image = QImage(QSize(1, 1), QImage.Format_ARGB32_Premultiplied)
+            image.setPixelColor(0, 0, rgb)
+            pixmap = QPixmap.fromImage(image)
+            self.findChild(QLabel, 'label_4').setPixmap(pixmap)
+
+
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    UIWindow = MainWindow()
-    UIWindow.show()
-    sys.exit(app.exec())
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
